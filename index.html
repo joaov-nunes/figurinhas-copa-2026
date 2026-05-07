@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Figurinhas - Copa do Mundo 2026</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f5f7fa;--card:#fff;--dark:#0a1628;--navy:#0f3460;
+  --teal:#00b4d8;--gold:#ffc107;--green:#00c853;--red:#e94560;
+  --orange:#ff9800;--gray:#ccc;--light-gray:#e8ecf1;--text:#1a1a2e;
+  --text-muted:#6b7280;--radius:10px;--shadow:0 2px 12px rgba(0,0,0,0.08);
+}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,var(--dark) 0%,var(--navy) 100%);color:#fff;padding:20px 24px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.header h1{font-size:1.5rem;font-weight:700;letter-spacing:1px;margin-bottom:2px}
+.header p{font-size:.85rem;opacity:.7}
+.container{max-width:1200px;margin:0 auto;padding:16px}
+
+/* Stats Area */
+.stats-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat-card{flex:1;min-width:120px;background:var(--card);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow)}
+.stat-card .num{font-size:1.6rem;font-weight:800}
+.stat-card .label{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.stat-card.owned .num{color:var(--green)}
+.stat-card.missing .num{color:var(--red)}
+.stat-card.repeated .num{color:var(--orange)}
+
+/* Donut Chart */
+.progress-section{display:flex;align-items:center;justify-content:center;gap:24px;background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);flex-wrap:wrap}
+.donut-container{position:relative;width:160px;height:160px}
+.donut-container svg{transform:rotate(-90deg)}
+.donut-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.donut-text .pct{font-size:2rem;font-weight:800;color:var(--dark)}
+.donut-text .sub{font-size:.7rem;color:var(--text-muted)}
+.progress-legend{display:flex;flex-direction:column;gap:8px}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:.85rem}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+
+/* Filter & Action Buttons */
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.btn{padding:10px 18px;border:none;border-radius:8px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+.btn:active{transform:translateY(0)}
+.btn-filter{background:var(--light-gray);color:var(--text)}
+.btn-filter.active{background:var(--teal);color:#fff}
+.btn-action{background:var(--navy);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-success{background:var(--green);color:#fff}
+.btn-gold{background:var(--gold);color:var(--dark)}
+.btn-sm{padding:6px 12px;font-size:.78rem}
+
+/* Search */
+.search-box{width:100%;padding:10px 16px;border:2px solid var(--light-gray);border-radius:8px;font-size:.9rem;margin-bottom:16px;outline:none;transition:border-color .2s}
+.search-box:focus{border-color:var(--teal)}
+
+/* Group Section */
+.group-section{background:var(--card);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+.group-header{padding:14px 18px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,var(--dark),var(--navy));color:#fff;user-select:none}
+.group-header:hover{opacity:.95}
+.group-header h2{font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.group-header .group-stats{font-size:.8rem;opacity:.8;display:flex;gap:12px}
+.group-header .arrow{transition:transform .3s;font-size:1.2rem}
+.group-header .arrow.collapsed{transform:rotate(-90deg)}
+.group-body{padding:12px 16px}
+.group-body.hidden{display:none}
+
+/* Team Row */
+.team-row{margin-bottom:14px}
+.team-row:last-child{margin-bottom:0}
+.team-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:4px 0}
+.team-flag{font-size:1.3rem}
+.team-name{font-weight:700;font-size:.9rem}
+.team-code{color:var(--text-muted);font-size:.75rem}
+.team-progress{font-size:.75rem;color:var(--text-muted);margin-left:auto}
+
+/* Sticker Grid */
+.sticker-grid{display:flex;flex-wrap:wrap;gap:4px}
+.sticker{
+  width:54px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;font-weight:700;cursor:pointer;transition:all .15s;position:relative;
+  background:var(--light-gray);color:var(--text-muted);border:2px solid transparent;user-select:none;
+}
+.sticker:hover{transform:scale(1.08);z-index:2;box-shadow:0 3px 10px rgba(0,0,0,0.2)}
+.sticker.owned{background:#c8f7d5;color:#1b7a3d;border-color:#00c853}
+.sticker.repeated{background:#fff3cd;color:#856404;border-color:var(--orange)}
+.sticker .repeat-badge{
+  position:absolute;top:-6px;right:-6px;background:var(--orange);color:#fff;
+  font-size:.6rem;width:16px;height:16px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+.sticker.hidden-sticker{display:none}
+
+/* Repeated Section */
+.repeated-section{background:var(--card);border-radius:var(--radius);padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.repeated-section h3{font-size:1rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.repeated-list{display:flex;flex-wrap:wrap;gap:6px;min-height:40px}
+.repeated-chip{background:#fff3cd;color:#856404;border:1px solid var(--orange);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:4px}
+.repeated-chip .qty{background:var(--orange);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.65rem}
+.empty-msg{color:var(--text-muted);font-size:.85rem;font-style:italic;padding:8px}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border-radius:12px;padding:24px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{margin-bottom:16px}
+.modal .close-btn{float:right;background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-muted)}
+
+/* Footer */
+.footer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;padding:16px;background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+/* Responsiveness */
+@media(max-width:600px){
+  .header h1{font-size:1.2rem}
+  .stats-row{gap:8px}
+  .stat-card{min-width:70px;padding:10px 6px}
+  .stat-card .num{font-size:1.2rem}
+  .sticker{width:46px;height:30px;font-size:.58rem}
+  .btn{padding:8px 12px;font-size:.78rem}
+  .progress-section{flex-direction:column}
+}
+
+/* Print styles */
+@media print{
+  .header,.btn-row,.footer-actions,.search-box{display:none!important}
+  .group-body{display:block!important}
+  .sticker{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}
+
+/* Tooltip */
+.tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:6px 10px;border-radius:6px;font-size:.7rem;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .2s;z-index:10}
+.sticker:hover .tooltip{opacity:1}
+
+/* Animations */
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+.sticker.just-toggled{animation:pop .25s ease}
+
+/* Select all toggle */
+.select-tools{display:flex;gap:6px;align-items:center;margin-left:auto;font-size:.75rem}
+.select-tools button{padding:2px 8px;border-radius:4px;border:1px solid var(--gray);background:#fff;cursor:pointer;font-size:.7rem}
+.select-tools button:hover{background:var(--light-gray)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#9917; FIGURINHAS COPA DO MUNDO 2026</h1>
+  <p>Album Panini - Controle de Colecao</p>
+</div>
+
+<div class="container">
+  <!-- Progress Section -->
+  <div class="progress-section">
+    <div class="donut-container">
+      <svg viewBox="0 0 160 160" width="160" height="160">
+        <circle cx="80" cy="80" r="65" fill="none" stroke="#e8ecf1" stroke-width="16"/>
+        <circle id="donutOwned" cx="80" cy="80" r="65" fill="none" stroke="var(--green)" stroke-width="16" stroke-dasharray="0 408.4" stroke-linecap="round"/>
+        <circle id="donutRepeated" cx="80" cy="80" r="50" fill="none" stroke="var(--orange)" stroke-width="10" stroke-dasharray="0 314.2" stroke-linecap="round"/>
+      </svg>
+      <div class="donut-text">
+        <div class="pct" id="pctText">0%</div>
+        <div class="sub">completo</div>
+      </div>
+    </div>
+    <div class="progress-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><span id="legendOwned">0 figurinhas coladas</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><span id="legendMissing">994 faltantes</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><span id="legendRepeated">0 repetidas</span></div>
+      <div class="legend-item" style="margin-top:8px;font-weight:700;font-size:.9rem"><span id="legendTotal">Total: 994 figurinhas</span></div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card owned"><div class="num" id="statOwned">0</div><div class="label">Coladas</div></div>
+    <div class="stat-card missing"><div class="num" id="statMissing">994</div><div class="label">Faltantes</div></div>
+    <div class="stat-card repeated"><div class="num" id="statRepeated">0</div><div class="label">Repetidas</div></div>
+    <div class="stat-card"><div class="num" id="statRepeatedTotal">0</div><div class="label">Total Extras</div></div>
+  </div>
+
+  <!-- Filter Buttons -->
+  <div class="btn-row">
+    <button class="btn btn-filter active" data-filter="all" onclick="setFilter('all')">&#128203; Todas</button>
+    <button class="btn btn-filter" data-filter="missing" onclick="setFilter('missing')">&#10060; Faltantes</button>
+    <button class="btn btn-filter" data-filter="owned" onclick="setFilter('owned')">&#9989; Coladas</button>
+    <button class="btn btn-filter" data-filter="repeated" onclick="setFilter('repeated')">&#128260; Repetidas</button>
+  </div>
+
+  <!-- Search -->
+  <input type="text" class="search-box" id="searchBox" placeholder="Buscar figurinha... (ex: BRA5, MEX, Argentina)" oninput="applyFilters()">
+
+  <!-- Repeated Stickers Section -->
+  <div class="repeated-section" id="repeatedSection">
+    <h3>&#128260; Figurinhas Repetidas <span id="repeatedCount" style="color:var(--orange)">(0)</span></h3>
+    <div class="repeated-list" id="repeatedList">
+      <div class="empty-msg">Nenhuma figurinha repetida ainda. Clique duas vezes em uma figurinha para marcar como repetida.</div>
+    </div>
+  </div>
+
+  <!-- Sticker Groups -->
+  <div id="groupsContainer"></div>
+
+  <!-- Footer Actions -->
+  <div class="footer-actions">
+    <button class="btn btn-action" onclick="exportBackup()">&#128190; Backup</button>
+    <button class="btn btn-action" onclick="document.getElementById('importFile').click()">&#128194; Restaurar Backup</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(event)">
+    <button class="btn btn-gold" onclick="generatePDF()">&#128196; PDF Faltantes/Repetidas</button>
+    <button class="btn btn-danger" onclick="confirmReset()">&#128465; Resetar Tudo</button>
+  </div>
+</div>
+
+<!-- Reset Confirmation Modal -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('resetModal')">&times;</button>
+    <h3>&#9888;&#65039; Resetar tudo?</h3>
+    <p style="margin-bottom:16px;color:var(--text-muted)">Isso vai apagar todo o progresso. Tem certeza? Considere fazer um backup antes.</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-danger" onclick="resetAll()">Sim, resetar</button>
+      <button class="btn btn-filter" onclick="closeModal('resetModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Repeat Count Modal -->
+<div class="modal-overlay" id="repeatModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeModal('repeatModal')">&times;</button>
+    <h3 id="repeatModalTitle">Figurinha</h3>
+    <p style="margin-bottom:16px;color:var(--text-muted)">Quantas copias extras (repetidas) voce tem?</p>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button class="btn btn-filter" onclick="changeRepeatCount(-1)" style="font-size:1.2rem;padding:8px 16px">-</button>
+      <span id="repeatCountInput" style="font-size:2rem;font-weight:800;min-width:40px;text-align:center">0</span>
+      <button class="btn btn-filter" onclick="changeRepeatCount(1)" style="font-size:1.2rem;padding:8px 16px">+</button>
+    </div>
+    <button class="btn btn-success" onclick="saveRepeatCount()">Salvar</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ====== DATA ======
+const ALBUM_DATA = {
+  special_top: { id:'FWC', name:'Copa do Mundo FIFA', flag:'&#127942;', stickers: ['FWC00',...Array.from({length:8},(_,i)=>`FWC${i+1}`)] },
+  groups: [
+    { group:'A', teams:[
+      {code:'MEX',name:'Mexico',flag:'\u{1F1F2}\u{1F1FD}',count:20},
+      {code:'RSA',name:'Africa do Sul',flag:'\u{1F1FF}\u{1F1E6}',count:20},
+      {code:'KOR',name:'Coreia do Sul',flag:'\u{1F1F0}\u{1F1F7}',count:20},
+      {code:'CZE',name:'Rep. Tcheca',flag:'\u{1F1E8}\u{1F1FF}',count:20}
+    ]},
+    { group:'B', teams:[
+      {code:'CAN',name:'Canada',flag:'\u{1F1E8}\u{1F1E6}',count:20},
+      {code:'BIH',name:'Bosnia e Herz.',flag:'\u{1F1E7}\u{1F1E6}',count:20},
+      {code:'QAT',name:'Catar',flag:'\u{1F1F6}\u{1F1E6}',count:20},
+      {code:'SUI',name:'Suica',flag:'\u{1F1E8}\u{1F1ED}',count:20}
+    ]},
+    { group:'C', teams:[
+      {code:'BRA',name:'Brasil',flag:'\u{1F1E7}\u{1F1F7}',count:20},
+      {code:'MAR',name:'Marrocos',flag:'\u{1F1F2}\u{1F1E6}',count:20},
+      {code:'HAI',name:'Haiti',flag:'\u{1F1ED}\u{1F1F9}',count:20},
+      {code:'SCO',name:'Escocia',flag:'\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}',count:20}
+    ]},
+    { group:'D', teams:[
+      {code:'USA',name:'Estados Unidos',flag:'\u{1F1FA}\u{1F1F8}',count:20},
+      {code:'PAR',name:'Paraguai',flag:'\u{1F1F5}\u{1F1FE}',count:20},
+      {code:'AUS',name:'Australia',flag:'\u{1F1E6}\u{1F1FA}',count:20},
+      {code:'TUR',name:'Turquia',flag:'\u{1F1F9}\u{1F1F7}',count:20}
+    ]},
+    { group:'E', teams:[
+      {code:'GER',name:'Alemanha',flag:'\u{1F1E9}\u{1F1EA}',count:20},
+      {code:'CUW',name:'Curacao',flag:'\u{1F1E8}\u{1F1FC}',count:20},
+      {code:'CIV',name:'Costa do Marfim',flag:'\u{1F1E8}\u{1F1EE}',count:20},
+      {code:'ECU',name:'Equador',flag:'\u{1F1EA}\u{1F1E8}',count:20}
+    ]},
+    { group:'F', teams:[
+      {code:'NED',name:'Holanda',flag:'\u{1F1F3}\u{1F1F1}',count:20},
+      {code:'JPN',name:'Japao',flag:'\u{1F1EF}\u{1F1F5}',count:20},
+      {code:'SWE',name:'Suecia',flag:'\u{1F1F8}\u{1F1EA}',count:20},
+      {code:'TUN',name:'Tunisia',flag:'\u{1F1F9}\u{1F1F3}',count:20}
+    ]},
+    { group:'G', teams:[
+      {code:'BEL',name:'Belgica',flag:'\u{1F1E7}\u{1F1EA}',count:20},
+      {code:'EGY',name:'Egito',flag:'\u{1F1EA}\u{1F1EC}',count:20},
+      {code:'IRN',name:'Ira',flag:'\u{1F1EE}\u{1F1F7}',count:20},
+      {code:'NZL',name:'Nova Zelandia',flag:'\u{1F1F3}\u{1F1FF}',count:20}
+    ]},
+    { group:'H', teams:[
+      {code:'ESP',name:'Espanha',flag:'\u{1F1EA}\u{1F1F8}',count:20},
+      {code:'CPV',name:'Cabo Verde',flag:'\u{1F1E8}\u{1F1FB}',count:20},
+      {code:'KSA',name:'Arabia Saudita',flag:'\u{1F1F8}\u{1F1E6}',count:20},
+      {code:'URU',name:'Uruguai',flag:'\u{1F1FA}\u{1F1FE}',count:20}
+    ]},
+    { group:'I', teams:[
+      {code:'FRA',name:'Franca',flag:'\u{1F1EB}\u{1F1F7}',count:20},
+      {code:'SEN',name:'Senegal',flag:'\u{1F1F8}\u{1F1F3}',count:20},
+      {code:'IRQ',name:'Iraque',flag:'\u{1F1EE}\u{1F1F6}',count:20},
+      {code:'NOR',name:'Noruega',flag:'\u{1F1F3}\u{1F1F4}',count:20}
+    ]},
+    { group:'J', teams:[
+      {code:'ARG',name:'Argentina',flag:'\u{1F1E6}\u{1F1F7}',count:20},
+      {code:'ALG',name:'Argelia',flag:'\u{1F1E9}\u{1F1FF}',count:20},
+      {code:'AUT',name:'Austria',flag:'\u{1F1E6}\u{1F1F9}',count:20},
+      {code:'JOR',name:'Jordania',flag:'\u{1F1EF}\u{1F1F4}',count:20}
+    ]},
+    { group:'K', teams:[
+      {code:'POR',name:'Portugal',flag:'\u{1F1F5}\u{1F1F9}',count:20},
+      {code:'COD',name:'RD Congo',flag:'\u{1F1E8}\u{1F1E9}',count:20},
+      {code:'UZB',name:'Uzbequistao',flag:'\u{1F1FA}\u{1F1FF}',count:20},
+      {code:'COL',name:'Colombia',flag:'\u{1F1E8}\u{1F1F4}',count:20}
+    ]},
+    { group:'L', teams:[
+      {code:'ENG',name:'Inglaterra',flag:'\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}',count:20},
+      {code:'CRO',name:'Croacia',flag:'\u{1F1ED}\u{1F1F7}',count:20},
+      {code:'GHA',name:'Gana',flag:'\u{1F1EC}\u{1F1ED}',count:20},
+      {code:'PAN',name:'Panama',flag:'\u{1F1F5}\u{1F1E6}',count:20}
+    ]}
+  ],
+  special_bottom: { id:'FWC_B', name:'Copa do Mundo FIFA', flag:'&#127942;', stickers: Array.from({length:11},(_,i)=>`FWC${i+9}`) },
+  extras: { id:'CC', name:'Extras / Especiais', flag:'&#11088;', stickers: Array.from({length:14},(_,i)=>`CC${i+1}`) }
+};
+
+// Build all sticker IDs
+const ALL_STICKERS = [];
+ALBUM_DATA.special_top.stickers.forEach(s => ALL_STICKERS.push(s));
+ALBUM_DATA.groups.forEach(g => g.teams.forEach(t => {
+  for(let i=1;i<=t.count;i++) ALL_STICKERS.push(`${t.code}${i}`);
+}));
+ALBUM_DATA.special_bottom.stickers.forEach(s => ALL_STICKERS.push(s));
+ALBUM_DATA.extras.stickers.forEach(s => ALL_STICKERS.push(s));
+
+const TOTAL = ALL_STICKERS.length;
+
+// ====== STATE ======
+// state[stickerId] = { owned: bool, repeats: number }
+let state = {};
+let currentFilter = 'all';
+let currentRepeatSticker = null;
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem('copa2026_state');
+    if (saved) state = JSON.parse(saved);
+  } catch(e) { state = {}; }
+}
+
+function saveState() {
+  localStorage.setItem('copa2026_state', JSON.stringify(state));
+}
+
+function getSticker(id) {
+  return state[id] || { owned: false, repeats: 0 };
+}
+
+function toggleOwned(id) {
+  const s = getSticker(id);
+  if (s.owned) {
+    state[id] = { owned: false, repeats: 0 };
+  } else {
+    state[id] = { owned: true, repeats: 0 };
+  }
+  saveState();
+  updateUI();
+  animateSticker(id);
+}
+
+function openRepeatModal(id, e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const s = getSticker(id);
+  if (!s.owned) {
+    state[id] = { owned: true, repeats: 1 };
+  }
+  currentRepeatSticker = id;
+  document.getElementById('repeatModalTitle').textContent = `Figurinha ${id}`;
+  document.getElementById('repeatCountInput').textContent = getSticker(id).repeats;
+  document.getElementById('repeatModal').classList.add('show');
+}
+
+function changeRepeatCount(delta) {
+  const el = document.getElementById('repeatCountInput');
+  let val = parseInt(el.textContent) + delta;
+  if (val < 0) val = 0;
+  if (val > 99) val = 99;
+  el.textContent = val;
+}
+
+function saveRepeatCount() {
+  if (!currentRepeatSticker) return;
+  const val = parseInt(document.getElementById('repeatCountInput').textContent);
+  const s = getSticker(currentRepeatSticker);
+  state[currentRepeatSticker] = { owned: true, repeats: val };
+  saveState();
+  closeModal('repeatModal');
+  updateUI();
+}
+
+function animateSticker(id) {
+  const el = document.querySelector(`[data-id="${id}"]`);
+  if (el) { el.classList.remove('just-toggled'); void el.offsetWidth; el.classList.add('just-toggled'); }
+}
+
+// ====== RENDERING ======
+function renderGroups() {
+  const container = document.getElementById('groupsContainer');
+  let html = '';
+
+  // FWC Top
+  html += renderSpecialSection(ALBUM_DATA.special_top, 'Copa do Mundo FIFA (FWC 00-8)');
+
+  // Groups A-L
+  ALBUM_DATA.groups.forEach(g => {
+    const teamStickers = [];
+    g.teams.forEach(t => {
+      for(let i=1;i<=t.count;i++) teamStickers.push(`${t.code}${i}`);
+    });
+    const owned = teamStickers.filter(s => getSticker(s).owned).length;
+    const total = teamStickers.length;
+
+    html += `<div class="group-section" data-group="${g.group}">
+      <div class="group-header" onclick="toggleGroup('${g.group}')">
+        <h2>&#127944; Grupo ${g.group}</h2>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="group-stats"><span>${owned}/${total}</span></div>
+          <span class="arrow" id="arrow_${g.group}">&#9660;</span>
+        </div>
+      </div>
+      <div class="group-body" id="body_${g.group}">`;
+
+    g.teams.forEach(t => {
+      const tStickers = [];
+      for(let i=1;i<=t.count;i++) tStickers.push(`${t.code}${i}`);
+      const tOwned = tStickers.filter(s => getSticker(s).owned).length;
+
+      html += `<div class="team-row" data-team="${t.code}">
+        <div class="team-header">
+          <span class="team-flag">${t.flag}</span>
+          <span class="team-name">${t.name}</span>
+          <span class="team-code">(${t.code})</span>
+          <span class="team-progress">${tOwned}/${t.count}</span>
+        </div>
+        <div class="sticker-grid">`;
+      tStickers.forEach(s => { html += renderSticker(s); });
+      html += `</div></div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  // FWC Bottom
+  html += renderSpecialSection(ALBUM_DATA.special_bottom, 'Copa do Mundo FIFA (FWC 9-19)');
+
+  // CC
+  html += renderSpecialSection(ALBUM_DATA.extras, 'Extras / Especiais (CC)');
+
+  container.innerHTML = html;
+}
+
+function renderSpecialSection(sec, title) {
+  const owned = sec.stickers.filter(s => getSticker(s).owned).length;
+  const total = sec.stickers.length;
+  let html = `<div class="group-section">
+    <div class="group-header" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.arrow').classList.toggle('collapsed')">
+      <h2>${sec.flag} ${title}</h2>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div class="group-stats"><span>${owned}/${total}</span></div>
+        <span class="arrow">&#9660;</span>
+      </div>
+    </div>
+    <div class="group-body"><div class="sticker-grid">`;
+  sec.stickers.forEach(s => { html += renderSticker(s); });
+  html += `</div></div></div>`;
+  return html;
+}
+
+function renderSticker(id) {
+  const s = getSticker(id);
+  let cls = 'sticker';
+  if (s.owned && s.repeats > 0) cls += ' owned repeated';
+  else if (s.owned) cls += ' owned';
+  const badge = s.repeats > 0 ? `<span class="repeat-badge">${s.repeats}</span>` : '';
+  return `<div class="${cls}" data-id="${id}" onclick="toggleOwned('${id}')" oncontextmenu="openRepeatModal('${id}',event)" ondblclick="openRepeatModal('${id}',event)">
+    ${id}${badge}
+    <span class="tooltip">Clique: marcar | Duplo clique: repetida</span>
+  </div>`;
+}
+
+function toggleGroup(groupId) {
+  const body = document.getElementById(`body_${groupId}`);
+  const arrow = document.getElementById(`arrow_${groupId}`);
+  body.classList.toggle('hidden');
+  arrow.classList.toggle('collapsed');
+}
+
+// ====== FILTERS ======
+function setFilter(filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.btn-filter').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById('searchBox').value.trim().toUpperCase();
+  document.querySelectorAll('.sticker').forEach(el => {
+    const id = el.dataset.id;
+    const s = getSticker(id);
+    let visible = true;
+
+    // Filter logic
+    if (currentFilter === 'owned') visible = s.owned;
+    else if (currentFilter === 'missing') visible = !s.owned;
+    else if (currentFilter === 'repeated') visible = s.owned && s.repeats > 0;
+
+    // Search logic
+    if (search && visible) {
+      const teamCode = id.replace(/[0-9]/g, '');
+      const teamInfo = findTeamByCode(teamCode);
+      const searchableText = (id + ' ' + (teamInfo ? teamInfo.name : '')).toUpperCase();
+      visible = searchableText.includes(search);
+    }
+
+    el.classList.toggle('hidden-sticker', !visible);
+  });
+
+  // Hide empty team rows and groups
+  document.querySelectorAll('.team-row').forEach(row => {
+    const hasVisible = row.querySelector('.sticker:not(.hidden-sticker)');
+    row.style.display = hasVisible ? '' : 'none';
+  });
+  document.querySelectorAll('.group-section').forEach(sec => {
+    const hasVisible = sec.querySelector('.sticker:not(.hidden-sticker)');
+    const body = sec.querySelector('.group-body');
+    if (!hasVisible && body) sec.style.display = 'none';
+    else sec.style.display = '';
+  });
+}
+
+function findTeamByCode(code) {
+  for (const g of ALBUM_DATA.groups) {
+    for (const t of g.teams) {
+      if (t.code === code) return t;
+    }
+  }
+  return null;
+}
+
+// ====== UPDATE UI ======
+function updateUI() {
+  let owned = 0, repeated = 0, totalRepeats = 0;
+  ALL_STICKERS.forEach(id => {
+    const s = getSticker(id);
+    if (s.owned) owned++;
+    if (s.owned && s.repeats > 0) { repeated++; totalRepeats += s.repeats; }
+  });
+  const missing = TOTAL - owned;
+  const pct = Math.round((owned / TOTAL) * 100);
+
+  // Stats
+  document.getElementById('statOwned').textContent = owned;
+  document.getElementById('statMissing').textContent = missing;
+  document.getElementById('statRepeated').textContent = repeated;
+  document.getElementById('statRepeatedTotal').textContent = totalRepeats;
+
+  // Donut
+  const circumOuter = 2 * Math.PI * 65;
+  const circumInner = 2 * Math.PI * 50;
+  document.getElementById('donutOwned').setAttribute('stroke-dasharray', `${(owned/TOTAL)*circumOuter} ${circumOuter}`);
+  document.getElementById('donutRepeated').setAttribute('stroke-dasharray', `${(repeated/TOTAL)*circumInner} ${circumInner}`);
+  document.getElementById('pctText').textContent = pct + '%';
+
+  // Legend
+  document.getElementById('legendOwned').textContent = `${owned} figurinhas coladas`;
+  document.getElementById('legendMissing').textContent = `${missing} faltantes`;
+  document.getElementById('legendRepeated').textContent = `${totalRepeats} repetidas (${repeated} diferentes)`;
+
+  // Repeated section
+  const repeatedList = document.getElementById('repeatedList');
+  const repeatedItems = [];
+  ALL_STICKERS.forEach(id => {
+    const s = getSticker(id);
+    if (s.owned && s.repeats > 0) repeatedItems.push({ id, repeats: s.repeats });
+  });
+  document.getElementById('repeatedCount').textContent = `(${totalRepeats})`;
+  if (repeatedItems.length === 0) {
+    repeatedList.innerHTML = '<div class="empty-msg">Nenhuma figurinha repetida ainda. Clique duas vezes em uma figurinha para marcar como repetida.</div>';
+  } else {
+    repeatedList.innerHTML = repeatedItems.map(r =>
+      `<span class="repeated-chip" onclick="openRepeatModal('${r.id}',event)" style="cursor:pointer">${r.id} <span class="qty">${r.repeats}</span></span>`
+    ).join('');
+  }
+
+  // Update sticker visuals without full re-render
+  document.querySelectorAll('.sticker').forEach(el => {
+    const id = el.dataset.id;
+    const s = getSticker(id);
+    el.classList.toggle('owned', s.owned);
+    el.classList.toggle('repeated', s.owned && s.repeats > 0);
+    const badge = el.querySelector('.repeat-badge');
+    if (s.repeats > 0) {
+      if (badge) badge.textContent = s.repeats;
+      else {
+        const b = document.createElement('span');
+        b.className = 'repeat-badge';
+        b.textContent = s.repeats;
+        el.appendChild(b);
+      }
+    } else if (badge) badge.remove();
+  });
+
+  // Update group and team counters
+  ALBUM_DATA.groups.forEach(g => {
+    const sec = document.querySelector(`[data-group="${g.group}"]`);
+    if (!sec) return;
+    const teamStickers = [];
+    g.teams.forEach(t => { for(let i=1;i<=t.count;i++) teamStickers.push(`${t.code}${i}`); });
+    const gOwned = teamStickers.filter(s => getSticker(s).owned).length;
+    const statsEl = sec.querySelector('.group-stats span');
+    if (statsEl) statsEl.textContent = `${gOwned}/${teamStickers.length}`;
+
+    g.teams.forEach(t => {
+      const tRow = sec.querySelector(`[data-team="${t.code}"]`);
+      if (!tRow) return;
+      const tStickers = [];
+      for(let i=1;i<=t.count;i++) tStickers.push(`${t.code}${i}`);
+      const tOwned = tStickers.filter(s => getSticker(s).owned).length;
+      const progEl = tRow.querySelector('.team-progress');
+      if (progEl) progEl.textContent = `${tOwned}/${t.count}`;
+    });
+  });
+
+  applyFilters();
+}
+
+// ====== MODALS ======
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function confirmReset() {
+  document.getElementById('resetModal').classList.add('show');
+}
+
+function resetAll() {
+  state = {};
+  saveState();
+  closeModal('resetModal');
+  renderGroups();
+  updateUI();
+}
+
+// ====== BACKUP ======
+function exportBackup() {
+  const data = {
+    version: 1,
+    date: new Date().toISOString(),
+    app: 'Copa2026_Figurinhas',
+    state: state
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `figurinhas_copa2026_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.state) {
+        state = data.state;
+        saveState();
+        renderGroups();
+        updateUI();
+        alert('Backup restaurado com sucesso!');
+      } else {
+        alert('Arquivo de backup invalido.');
+      }
+    } catch(err) {
+      alert('Erro ao ler o arquivo: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ====== PDF GENERATION ======
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const pageW = 210, margin = 15;
+  let y = 20;
+
+  // Title
+  doc.setFontSize(18);
+  doc.setFont(undefined, 'bold');
+  doc.text('Figurinhas Copa 2026 - Album Panini', margin, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+  doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR')}`, margin, y);
+  y += 4;
+
+  // Stats
+  let owned=0, totalRepeats=0;
+  const missingList = [], repeatedList = [];
+  ALL_STICKERS.forEach(id => {
+    const s = getSticker(id);
+    if (s.owned) { owned++; if(s.repeats>0){repeatedList.push({id,repeats:s.repeats});totalRepeats+=s.repeats;} }
+    else missingList.push(id);
+  });
+
+  y += 4;
+  doc.setFontSize(11);
+  doc.setFont(undefined, 'bold');
+  doc.text(`Coladas: ${owned}/${TOTAL}  |  Faltantes: ${missingList.length}  |  Repetidas: ${totalRepeats}`, margin, y);
+  y += 10;
+
+  // Missing stickers section
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(229, 69, 96);
+  doc.text(`FIGURINHAS FALTANTES (${missingList.length})`, margin, y);
+  doc.setTextColor(0,0,0);
+  y += 8;
+
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+
+  // Group missing stickers by team
+  const missingByTeam = {};
+  missingList.forEach(id => {
+    const code = id.replace(/[0-9]/g, '');
+    if (!missingByTeam[code]) missingByTeam[code] = [];
+    missingByTeam[code].push(id);
+  });
+
+  Object.keys(missingByTeam).forEach(code => {
+    if (y > 275) { doc.addPage(); y = 20; }
+    const teamInfo = findTeamByCode(code);
+    const teamName = teamInfo ? teamInfo.name : code;
+    doc.setFont(undefined, 'bold');
+    doc.text(`${teamName} (${code}):`, margin, y);
+    doc.setFont(undefined, 'normal');
+    const stickerText = missingByTeam[code].join(', ');
+    const lines = doc.splitTextToSize(stickerText, pageW - margin * 2);
+    y += 5;
+    lines.forEach(line => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(line, margin + 2, y);
+      y += 4.5;
+    });
+    y += 2;
+  });
+
+  // Repeated stickers section
+  y += 6;
+  if (y > 260) { doc.addPage(); y = 20; }
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(255, 152, 0);
+  doc.text(`FIGURINHAS REPETIDAS (${totalRepeats})`, margin, y);
+  doc.setTextColor(0,0,0);
+  y += 8;
+
+  doc.setFontSize(9);
+  if (repeatedList.length === 0) {
+    doc.setFont(undefined, 'italic');
+    doc.text('Nenhuma figurinha repetida.', margin, y);
+  } else {
+    // Group by team
+    const repByTeam = {};
+    repeatedList.forEach(r => {
+      const code = r.id.replace(/[0-9]/g, '');
+      if (!repByTeam[code]) repByTeam[code] = [];
+      repByTeam[code].push(r);
+    });
+    Object.keys(repByTeam).forEach(code => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      const teamInfo = findTeamByCode(code);
+      const teamName = teamInfo ? teamInfo.name : code;
+      doc.setFont(undefined, 'bold');
+      doc.text(`${teamName} (${code}):`, margin, y);
+      doc.setFont(undefined, 'normal');
+      const stickerText = repByTeam[code].map(r => `${r.id} (x${r.repeats})`).join(', ');
+      const lines = doc.splitTextToSize(stickerText, pageW - margin * 2);
+      y += 5;
+      lines.forEach(line => {
+        if (y > 280) { doc.addPage(); y = 20; }
+        doc.text(line, margin + 2, y);
+        y += 4.5;
+      });
+      y += 2;
+    });
+  }
+
+  doc.save(`figurinhas_copa2026_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// ====== INIT ======
+loadState();
+renderGroups();
+updateUI();
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('show'); });
+});
+</script>
+</body>
+</html>
