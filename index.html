@@ -229,9 +229,7 @@ body.dark .tooltip{background:#333}
     <button class="btn btn-action" onclick="exportBackup()">&#128190; Backup</button>
     <button class="btn btn-action" onclick="document.getElementById('importFile').click()">&#128194; Restaurar Backup</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importBackup(event)">
-    <button class="btn btn-gold" onclick="generatePDF()">&#128196; PDF Controle</button>
-    <button class="btn btn-gold" onclick="generateRepeatsPDF()">&#128260; PDF Repetidas</button>
-    <button class="btn btn-orange" onclick="confirmClearRepeats()" style="background:var(--orange);color:#fff">&#128260; Limpar Repetidas</button>
+    <button class="btn btn-gold" onclick="generatePDF()">&#128196; PDF Faltantes/Repetidas</button>
     <button class="btn btn-danger" onclick="confirmReset()">&#128465; Resetar Tudo</button>
   </div>
 </div>
@@ -245,19 +243,6 @@ body.dark .tooltip{background:#333}
     <div style="display:flex;gap:8px">
       <button class="btn btn-danger" onclick="resetAll()">Sim, resetar</button>
       <button class="btn btn-filter" onclick="closeModal('resetModal')">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Clear Repeats Modal -->
-<div class="modal-overlay" id="clearRepeatsModal">
-  <div class="modal">
-    <button class="close-btn" onclick="closeModal('clearRepeatsModal')">&times;</button>
-    <h3>&#128260; Limpar todas as repetidas?</h3>
-    <p style="margin-bottom:16px;color:var(--text-muted)">Isso vai zerar a contagem de repetidas de todas as figurinhas. As figurinhas marcadas como "tenho" continuam marcadas.</p>
-    <div style="display:flex;gap:8px">
-      <button class="btn" style="background:var(--orange);color:#fff" onclick="clearAllRepeats()">Sim, limpar repetidas</button>
-      <button class="btn btn-filter" onclick="closeModal('clearRepeatsModal')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -729,207 +714,105 @@ function importBackup(event) {
   event.target.value = '';
 }
 
-// ====== CLEAR REPEATS ======
-function confirmClearRepeats() {
-  document.getElementById('clearRepeatsModal').classList.add('show');
-}
-function clearAllRepeats() {
-  ALL_STICKERS.forEach(id => {
-    const s = getSticker(id);
-    if (s.owned && s.repeats > 0) {
-      state[id] = { owned: true, repeats: 0 };
-    }
-  });
-  saveState();
-  closeModal('clearRepeatsModal');
-  updateUI();
-}
-
 // ====== PDF GENERATION ======
 function generatePDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l', 'mm', 'a4');
-  const pageW = 297, pageH = 210;
-  const margin = 6;
-  const colW = (pageW - margin * 3) / 2;
-  const sqSize = 4.8;
-  const sqGap = 0.8;
-  const rowH = 6.2;
-
-  let ownedCount = 0, totalRepeats = 0;
-  ALL_STICKERS.forEach(id => {
-    const s = getSticker(id);
-    if (s.owned) ownedCount++;
-    if (s.owned && s.repeats > 0) totalRepeats += s.repeats;
-  });
-  const pct = Math.round((ownedCount / TOTAL) * 100);
-
-  doc.setFillColor(40, 40, 40);
-  doc.rect(0, 0, pageW, 14, 'F');
-  doc.setFontSize(11);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(255, 255, 255);
-  doc.text('CONTROLE DE FIGURINHAS — COPA DO MUNDO 2026', pageW / 2, 7, { align: 'center' });
-
-  const barW = 60, barH = 4, barX = pageW - margin - barW, barY = 5;
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(barX, barY, barW, barH, 1, 1, 'F');
-  doc.setFillColor(200, 30, 30);
-  doc.roundedRect(barX, barY, barW * (ownedCount / TOTAL), barH, 1, 1, 'F');
-  doc.setFontSize(7);
-  doc.setTextColor(255, 255, 255);
-  doc.text(`${ownedCount}/${TOTAL} (${pct}%)`, barX + barW / 2, barY + 3, { align: 'center' });
-
-  doc.setFontSize(6);
-  doc.setTextColor(200, 200, 200);
-  const legX = barX - 40;
-  doc.setFillColor(200, 30, 30);
-  doc.rect(legX, barY, 3, 3, 'F');
-  doc.text('Ja tenho', legX + 4, barY + 2.5);
-  doc.setFillColor(255, 255, 255);
-  doc.rect(legX + 20, barY, 3, 3, 'F');
-  doc.text('Faltando', legX + 24, barY + 2.5);
-  doc.setTextColor(0, 0, 0);
-
-  const allRows = [];
-  allRows.push({ groupLabel: '', teamName: 'Pag. Inicial', code: 'FWC',
-    stickers: ALBUM_DATA.special_top.stickers.map(id => ({ id, num: id.replace('FWC',''), owned: getSticker(id).owned })),
-    isSpecial: true });
-
-  ALBUM_DATA.groups.forEach(g => {
-    g.teams.forEach((t, ti) => {
-      const stickers = [];
-      for (let i = 1; i <= t.count; i++) {
-        const sid = `${t.code}${i}`;
-        stickers.push({ id: sid, num: String(i), owned: getSticker(sid).owned });
-      }
-      allRows.push({ groupLabel: ti === 0 ? g.group : '', teamName: t.name, code: t.code, stickers, isSpecial: false });
-    });
-  });
-
-  allRows.push({ groupLabel: '', teamName: 'WC History', code: 'FWC',
-    stickers: ALBUM_DATA.special_bottom.stickers.map(id => ({ id, num: id.replace('FWC',''), owned: getSticker(id).owned })),
-    isSpecial: true });
-  allRows.push({ groupLabel: '', teamName: 'Coca-Cola', code: 'CC',
-    stickers: ALBUM_DATA.extras.stickers.map(id => ({ id, num: id.replace('CC',''), owned: getSticker(id).owned })),
-    isSpecial: true });
-
-  const midPoint = Math.ceil(allRows.length / 2);
-  const leftRows = allRows.slice(0, midPoint);
-  const rightRows = allRows.slice(midPoint);
-
-  function drawColumn(rows, startX, startY) {
-    let y = startY;
-    const groupX = startX;
-    const nameX = startX + 10;
-    const codeX = startX + 38;
-    const sqStartX = startX + 48;
-
-    rows.forEach(row => {
-      if (row.groupLabel) {
-        doc.setFillColor(80, 80, 80);
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(5);
-        doc.setFont(undefined, 'bold');
-        const grpW = 8, grpH = rowH * 4;
-        doc.rect(groupX, y, grpW, Math.min(grpH, pageH - margin - y), 'F');
-        doc.text('GRUPO', groupX + grpW / 2, y + grpH / 2 - 2, { align: 'center' });
-        doc.setFontSize(8);
-        doc.text(row.groupLabel, groupX + grpW / 2, y + grpH / 2 + 2, { align: 'center' });
-      }
-
-      doc.setFontSize(5.5);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(60, 60, 60);
-      doc.text(row.teamName, nameX, y + rowH / 2 + 0.5);
-
-      doc.setFontSize(5);
-      doc.setTextColor(130, 130, 130);
-      doc.text(row.code, codeX, y + rowH / 2 + 0.5);
-
-      row.stickers.forEach((st, si) => {
-        const sx = sqStartX + si * (sqSize + sqGap);
-        const sy = y + (rowH - sqSize) / 2;
-
-        if (st.owned) {
-          doc.setFillColor(200, 30, 30);
-          doc.roundedRect(sx, sy, sqSize, sqSize, 0.5, 0.5, 'F');
-          doc.setFontSize(4);
-          doc.setTextColor(255, 255, 255);
-        } else {
-          doc.setFillColor(240, 240, 240);
-          doc.roundedRect(sx, sy, sqSize, sqSize, 0.5, 0.5, 'F');
-          doc.setDrawColor(200, 200, 200);
-          doc.roundedRect(sx, sy, sqSize, sqSize, 0.5, 0.5, 'S');
-          doc.setFontSize(4);
-          doc.setTextColor(150, 150, 150);
-        }
-        doc.text(st.num, sx + sqSize / 2, sy + sqSize / 2 + 1, { align: 'center' });
-      });
-
-      y += rowH;
-    });
-  }
-
-  const contentY = 17;
-  drawColumn(leftRows, margin, contentY);
-  drawColumn(rightRows, margin * 2 + colW, contentY);
-
-  doc.save(`controle_figurinhas_copa2026_${new Date().toISOString().slice(0,10)}.pdf`);
-}
-
-// ====== PDF REPETIDAS ======
-function generateRepeatsPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF('p', 'mm', 'a4');
   const pageW = 210, margin = 15;
   let y = 20;
 
-  let totalRepeats = 0;
-  const repeatedList = [];
-  ALL_STICKERS.forEach(id => {
-    const s = getSticker(id);
-    if (s.owned && s.repeats > 0) { repeatedList.push({id, repeats: s.repeats}); totalRepeats += s.repeats; }
-  });
-
+  // Title
   doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  doc.text('Figurinhas Repetidas - Copa 2026', margin, y);
+  doc.text('Figurinhas Copa 2026 - Album Panini', margin, y);
   y += 8;
   doc.setFontSize(10);
   doc.setFont(undefined, 'normal');
   doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} as ${new Date().toLocaleTimeString('pt-BR')}`, margin, y);
-  y += 6;
-  doc.setFontSize(12);
+  y += 4;
+
+  // Stats
+  let owned=0, totalRepeats=0;
+  const missingList = [], repeatedList = [];
+  ALL_STICKERS.forEach(id => {
+    const s = getSticker(id);
+    if (s.owned) { owned++; if(s.repeats>0){repeatedList.push({id,repeats:s.repeats});totalRepeats+=s.repeats;} }
+    else missingList.push(id);
+  });
+
+  y += 4;
+  doc.setFontSize(11);
   doc.setFont(undefined, 'bold');
-  doc.setTextColor(255, 152, 0);
-  doc.text(`Total: ${totalRepeats} figurinhas repetidas (${repeatedList.length} diferentes)`, margin, y);
-  doc.setTextColor(0, 0, 0);
+  doc.text(`Coladas: ${owned}/${TOTAL}  |  Faltantes: ${missingList.length}  |  Repetidas: ${totalRepeats}`, margin, y);
   y += 10;
 
+  // Missing stickers section
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(229, 69, 96);
+  doc.text(`FIGURINHAS FALTANTES (${missingList.length})`, margin, y);
+  doc.setTextColor(0,0,0);
+  y += 8;
+
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+
+  // Group missing stickers by team
+  const missingByTeam = {};
+  missingList.forEach(id => {
+    const code = id.replace(/[0-9]/g, '');
+    if (!missingByTeam[code]) missingByTeam[code] = [];
+    missingByTeam[code].push(id);
+  });
+
+  Object.keys(missingByTeam).forEach(code => {
+    if (y > 275) { doc.addPage(); y = 20; }
+    const teamInfo = findTeamByCode(code);
+    const teamName = teamInfo ? teamInfo.name : code;
+    doc.setFont(undefined, 'bold');
+    doc.text(`${teamName} (${code}):`, margin, y);
+    doc.setFont(undefined, 'normal');
+    const stickerText = missingByTeam[code].join(', ');
+    const lines = doc.splitTextToSize(stickerText, pageW - margin * 2);
+    y += 5;
+    lines.forEach(line => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(line, margin + 2, y);
+      y += 4.5;
+    });
+    y += 2;
+  });
+
+  // Repeated stickers section
+  y += 6;
+  if (y > 260) { doc.addPage(); y = 20; }
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(255, 152, 0);
+  doc.text(`FIGURINHAS REPETIDAS (${totalRepeats})`, margin, y);
+  doc.setTextColor(0,0,0);
+  y += 8;
+
+  doc.setFontSize(9);
   if (repeatedList.length === 0) {
-    doc.setFontSize(11);
     doc.setFont(undefined, 'italic');
-    doc.text('Nenhuma figurinha repetida registrada.', margin, y);
+    doc.text('Nenhuma figurinha repetida.', margin, y);
   } else {
+    // Group by team
     const repByTeam = {};
     repeatedList.forEach(r => {
       const code = r.id.replace(/[0-9]/g, '');
       if (!repByTeam[code]) repByTeam[code] = [];
       repByTeam[code].push(r);
     });
-
-    doc.setFontSize(9);
     Object.keys(repByTeam).forEach(code => {
       if (y > 275) { doc.addPage(); y = 20; }
       const teamInfo = findTeamByCode(code);
       const teamName = teamInfo ? teamInfo.name : code;
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(50, 50, 50);
       doc.text(`${teamName} (${code}):`, margin, y);
       doc.setFont(undefined, 'normal');
-      doc.setTextColor(0, 0, 0);
-      const stickerText = repByTeam[code].map(r => r.repeats > 1 ? `${r.id} (x${r.repeats})` : r.id).join(', ');
+      const stickerText = repByTeam[code].map(r => `${r.id} (x${r.repeats})`).join(', ');
       const lines = doc.splitTextToSize(stickerText, pageW - margin * 2);
       y += 5;
       lines.forEach(line => {
@@ -937,11 +820,11 @@ function generateRepeatsPDF() {
         doc.text(line, margin + 2, y);
         y += 4.5;
       });
-      y += 3;
+      y += 2;
     });
   }
 
-  doc.save(`repetidas_copa2026_${new Date().toISOString().slice(0,10)}.pdf`);
+  doc.save(`figurinhas_copa2026_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 // ====== DARK MODE ======
